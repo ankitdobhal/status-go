@@ -25,6 +25,7 @@ import (
 	"github.com/status-im/status-go/eth-node/types"
 	userimage "github.com/status-im/status-go/images"
 	"github.com/status-im/status-go/multiaccounts"
+	"github.com/status-im/status-go/multiaccounts/accounts"
 	"github.com/status-im/status-go/protocol/audio"
 	"github.com/status-im/status-go/protocol/common"
 	"github.com/status-im/status-go/protocol/communities"
@@ -700,42 +701,9 @@ func (m *Messenger) createChatIdentity(context chatContext) (*protobuf.ChatIdent
 		Clock:   m.transport.GetCurrentTime(),
 		EnsName: "", // TODO add ENS name handling to dedicate PR
 	}
-
-	ciis := make(map[string]*protobuf.IdentityImage)
-
-	switch context {
-	case publicChat:
-		m.logger.Info(fmt.Sprintf("handling %s ChatIdentity", context))
-
-		img, err := m.multiAccounts.GetIdentityImage(m.account.KeyUID, userimage.SmallDimName)
-		if err != nil {
-			return nil, err
-		}
-
-		m.logger.Debug(fmt.Sprintf("%s images.IdentityImage '%s'", context, spew.Sdump(img)))
-
-		ciis[userimage.SmallDimName] = m.adaptIdentityImageToProtobuf(img)
-		m.logger.Debug(fmt.Sprintf("%s protobuf.IdentityImage '%s'", context, spew.Sdump(ciis)))
-		ci.Images = ciis
-
-	case privateChat:
-		m.logger.Info(fmt.Sprintf("handling %s ChatIdentity", context))
-
-		imgs, err := m.multiAccounts.GetIdentityImages(m.account.KeyUID)
-		if err != nil {
-			return nil, err
-		}
-
-		m.logger.Debug(fmt.Sprintf("%s images.IdentityImage '%s'", context, spew.Sdump(imgs)))
-
-		for _, img := range imgs {
-			ciis[img.Name] = m.adaptIdentityImageToProtobuf(img)
-		}
-		m.logger.Debug(fmt.Sprintf("%s protobuf.IdentityImage '%s'", context, spew.Sdump(ciis)))
-		ci.Images = ciis
-
-	default:
-		return ci, fmt.Errorf("unknown ChatIdentity context '%s'", context)
+	err := m.attachIdentityImagesToChatIdentity(context, ci)
+	if err != nil {
+		return nil, err
 	}
 
 	return ci, nil
@@ -748,6 +716,60 @@ func (m *Messenger) adaptIdentityImageToProtobuf(img *userimage.IdentityImage) *
 		SourceType: protobuf.IdentityImage_RAW_PAYLOAD, // TODO add ENS avatar handling to dedicated PR
 		ImageType:  images.ImageType(img.Payload),
 	}
+}
+
+func (m *Messenger) attachIdentityImagesToChatIdentity(context chatContext, ci *protobuf.ChatIdentity) error {
+	s, err := m.getSettings()
+	if err != nil {
+		return err
+	}
+
+	ciis := make(map[string]*protobuf.IdentityImage)
+
+	switch context {
+	case publicChat:
+		m.logger.Info(fmt.Sprintf("handling %s ChatIdentity", context))
+
+		if s.ProfilePicturesVisibility != accounts.ProfilePicturesVisibilityEveryone {
+			m.logger.Info(fmt.Sprintf("settings.ProfilePicturesVisibility is set to '%d', public chat requires '%d'", s.ProfilePicturesVisibility, accounts.ProfilePicturesVisibilityEveryone))
+		}
+
+		img, err := m.multiAccounts.GetIdentityImage(m.account.KeyUID, userimage.SmallDimName)
+		if err != nil {
+			return err
+		}
+
+		m.logger.Debug(fmt.Sprintf("%s images.IdentityImage '%s'", context, spew.Sdump(img)))
+
+		ciis[userimage.SmallDimName] = m.adaptIdentityImageToProtobuf(img)
+		m.logger.Debug(fmt.Sprintf("%s protobuf.IdentityImage '%s'", context, spew.Sdump(ciis)))
+		ci.Images = ciis
+
+	case privateChat:
+		m.logger.Info(fmt.Sprintf("handling %s ChatIdentity", context))
+
+		if s.ProfilePicturesVisibility == accounts.ProfilePicturesVisibilityEveryone {
+			m.logger.Info(fmt.Sprintf("settings.ProfilePicturesVisibility is set to '%d', public chat requires '%d'", s.ProfilePicturesVisibility, accounts.ProfilePicturesVisibilityEveryone))
+		}
+
+		imgs, err := m.multiAccounts.GetIdentityImages(m.account.KeyUID)
+		if err != nil {
+			return err
+		}
+
+		m.logger.Debug(fmt.Sprintf("%s images.IdentityImage '%s'", context, spew.Sdump(imgs)))
+
+		for _, img := range imgs {
+			ciis[img.Name] = m.adaptIdentityImageToProtobuf(img)
+		}
+		m.logger.Debug(fmt.Sprintf("%s protobuf.IdentityImage '%s'", context, spew.Sdump(ciis)))
+		ci.Images = ciis
+
+	default:
+		return fmt.Errorf("unknown ChatIdentity context '%s'", context)
+	}
+
+	return nil
 }
 
 // handleSharedSecrets process the negotiated secrets received from the encryption layer
@@ -4368,4 +4390,9 @@ func (m *Messenger) getOrBuildContactFromMessage(msg *common.Message) (*Contact,
 
 	m.allContacts[msg.From] = c
 	return c, nil
+}
+
+func (m *Messenger) getSettings() (accounts.Settings, error) {
+	sDB := accounts.NewDB(m.database)
+	return sDB.GetSettings()
 }
