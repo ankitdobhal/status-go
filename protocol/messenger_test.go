@@ -2603,6 +2603,8 @@ func (s *MessengerSuite) TestEncryptDecryptIdentityImagesWithContactPubKeys() {
 	}
 	s.Require().NotEqual([]byte(smPayload), ci.Images["small"].Payload)
 	s.Require().NotEqual([]byte(lgPayload), ci.Images["large"].Payload)
+	s.Require().True(ci.Images["small"].Encrypted)
+	s.Require().True(ci.Images["large"].Encrypted)
 
 	// Switch messenger identities
 	sender := s.m.identity
@@ -2614,6 +2616,8 @@ func (s *MessengerSuite) TestEncryptDecryptIdentityImagesWithContactPubKeys() {
 
 	s.Require().Equal(smPayload, string(ci.Images["small"].Payload))
 	s.Require().Equal(lgPayload, string(ci.Images["large"].Payload))
+	s.Require().False(ci.Images["small"].Encrypted)
+	s.Require().False(ci.Images["large"].Encrypted)
 
 	// RESET Messenger identity, Contacts and IdentityImage.EncryptionKeys
 	s.m.identity = sender
@@ -2630,6 +2634,8 @@ func (s *MessengerSuite) TestEncryptDecryptIdentityImagesWithContactPubKeys() {
 	}
 	s.Require().NotEqual([]byte(smPayload), ci.Images["small"].Payload)
 	s.Require().NotEqual([]byte(lgPayload), ci.Images["large"].Payload)
+	s.Require().True(ci.Images["small"].Encrypted)
+	s.Require().True(ci.Images["large"].Encrypted)
 
 	// Switch messenger identities
 	s.m.identity = contactKeys[2]
@@ -2640,6 +2646,8 @@ func (s *MessengerSuite) TestEncryptDecryptIdentityImagesWithContactPubKeys() {
 
 	s.Require().NotEqual([]byte(smPayload), ci.Images["small"].Payload)
 	s.Require().NotEqual([]byte(lgPayload), ci.Images["large"].Payload)
+	s.Require().True(ci.Images["small"].Encrypted)
+	s.Require().True(ci.Images["large"].Encrypted)
 
 	// RESET Messenger identity
 	s.m.identity = sender
