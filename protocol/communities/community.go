@@ -116,7 +116,7 @@ func (o *Community) MarshalJSON() ([]byte, error) {
 		communityItem.Members = o.config.CommunityDescription.Members
 		communityItem.Permissions = o.config.CommunityDescription.Permissions
 		if o.config.CommunityDescription.Identity != nil {
-			communityItem.Name = o.config.CommunityDescription.Identity.DisplayName
+			communityItem.Name = o.Name()
 			communityItem.Color = o.config.CommunityDescription.Identity.Color
 			communityItem.Description = o.config.CommunityDescription.Identity.Description
 			for t, i := range o.config.CommunityDescription.Identity.Images {
@@ -130,6 +130,10 @@ func (o *Community) MarshalJSON() ([]byte, error) {
 
 	}
 	return json.Marshal(communityItem)
+}
+
+func (o *Community) Name() string {
+	return o.config.CommunityDescription.Identity.DisplayName
 }
 
 func (o *Community) initialize() {

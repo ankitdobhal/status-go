@@ -787,6 +787,12 @@ func (s *MessengerCommunitiesSuite) TestRequestAccessAgain() {
 
 	s.Require().Equal(requestToJoin1.ID, requestToJoin2.ID)
 
+	// Check that a notification is been added to messenger
+
+	notifications := response.Notifications()
+	s.Require().Len(notifications, 1)
+	s.Require().NotEqual(notifications[0].ID.Hex(), "0x0000000000000000000000000000000000000000000000000000000000000000")
+
 	// Accept request
 
 	acceptRequestToJoin := &requests.AcceptRequestToJoinCommunity{ID: requestToJoin1.ID}
