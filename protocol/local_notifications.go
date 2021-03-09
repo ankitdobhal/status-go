@@ -125,5 +125,4 @@ func (n NotificationBody) toCommunityRequestToJoinNotification(id string) *local
 		Deeplink: "status-im://cr/" + n.Community.IDString(),
 		Image:    "",
 	}
-
 }

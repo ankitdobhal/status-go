@@ -326,19 +326,22 @@ func (o *Community) hasMember(pk *ecdsa.PublicKey) bool {
 	return member != nil
 }
 
-func (o *Community) hasPermission(pk *ecdsa.PublicKey, role protobuf.CommunityMember_Roles) bool {
+func (o *Community) hasMemberPermission(member *protobuf.CommunityMember, permissions map[protobuf.CommunityMember_Roles]bool) bool {
+	for _, r := range member.Roles {
+		if permissions[r] {
+			return true
+		}
+	}
+	return false
+}
+
+func (o *Community) hasPermission(pk *ecdsa.PublicKey, roles map[protobuf.CommunityMember_Roles]bool) bool {
 	member := o.getMember(pk)
 	if member == nil {
 		return false
 	}
 
-	for _, r := range member.Roles {
-		if r == role {
-			return true
-		}
-	}
-
-	return false
+	return o.hasMemberPermission(member, roles)
 }
 
 func (o *Community) HasMember(pk *ecdsa.PublicKey) bool {
@@ -557,6 +560,22 @@ func (o *Community) ValidateRequestToJoin(signer *ecdsa.PublicKey, request *prot
 
 func (o *Community) IsAdmin() bool {
 	return o.config.PrivateKey != nil
+}
+
+func (o *Community) IsMemberAdmin(publicKey *ecdsa.PublicKey) bool {
+	return o.hasPermission(publicKey, adminRolePermissions())
+}
+
+func canManageUsersRolePermissions() map[protobuf.CommunityMember_Roles]bool {
+	roles := adminRolePermissions()
+	roles[protobuf.CommunityMember_ROLE_MANAGE_USERS] = true
+	return roles
+}
+
+func adminRolePermissions() map[protobuf.CommunityMember_Roles]bool {
+	roles := make(map[protobuf.CommunityMember_Roles]bool)
+	roles[protobuf.CommunityMember_ROLE_ALL] = true
+	return roles
 }
 
 func (o *Community) validateRequestToJoinWithChatID(request *protobuf.CommunityRequestToJoin) error {
@@ -850,7 +869,8 @@ func (o *Community) CanManageUsers(pk *ecdsa.PublicKey) bool {
 		return false
 	}
 
-	return o.hasPermission(pk, protobuf.CommunityMember_ROLE_ALL) || o.hasPermission(pk, protobuf.CommunityMember_ROLE_MANAGE_USERS)
+	roles := canManageUsersRolePermissions()
+	return o.hasPermission(pk, roles)
 
 }
 func (o *Community) isMember() bool {
@@ -880,6 +900,23 @@ func (o *Community) RequestedToJoinAt() uint64 {
 
 func (o *Community) nextClock() uint64 {
 	return o.config.CommunityDescription.Clock + 1
+}
+
+func (o *Community) CanManageUsersPublicKeys() ([]*ecdsa.PublicKey, error) {
+	var response []*ecdsa.PublicKey
+	roles := canManageUsersRolePermissions()
+	for pkString, member := range o.config.CommunityDescription.Members {
+		if o.hasMemberPermission(member, roles) {
+			pk, err := common.HexToPubkey(pkString)
+			if err != nil {
+				return nil, err
+			}
+
+			response = append(response, pk)
+		}
+
+	}
+	return response, nil
 }
 
 func emptyCommunityChanges() *CommunityChanges {

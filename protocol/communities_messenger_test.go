@@ -309,6 +309,8 @@ func (s *MessengerCommunitiesSuite) TestInviteUsersToCommunity() {
 	s.Require().NoError(err)
 	s.Require().NotNil(response)
 	s.Require().Len(response.Communities(), 1)
+	s.Require().True(response.Communities()[0].HasMember(&s.bob.identity.PublicKey))
+	s.Require().True(response.Communities()[0].IsMemberAdmin(&s.bob.identity.PublicKey))
 
 	community := response.Communities()[0]
 
