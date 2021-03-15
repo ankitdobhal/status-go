@@ -18,7 +18,7 @@ type NotificationBody struct {
 }
 
 func showMessageNotification(publicKey ecdsa.PublicKey, message *common.Message, chat *Chat, responseTo *common.Message) bool {
-	if chat != nil && chat.ChatType == ChatTypeOneToOne {
+	if chat != nil && (chat.OneToOne() || chat.PrivateGroupChat()) {
 		return true
 	}
 
